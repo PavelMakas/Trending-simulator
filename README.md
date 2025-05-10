@@ -95,12 +95,4 @@ Bob Wilson,8000.0
 4. **Error Handling**
    - Comprehensive logging of all operations
    - Graceful handling of exceptions
-   - Proper resource cleanup
-
-## Future Improvements
-
-1. Add support for different types of auctions
-2. Implement a web interface for real-time monitoring
-3. Add persistence layer for auction history
-4. Implement more sophisticated bidding strategies
-5. Add unit tests and integration tests 
+   - Proper resource cleanup 
