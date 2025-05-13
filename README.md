@@ -104,6 +104,13 @@ A multi-threaded auction system that simulates concurrent bidding and purchasing
 - Proper exception handling in all operations
 - Graceful shutdown procedures
 - Logging of important events and errors
+
+- ## Performance Considerations
+
+- Efficient thread pool usage
+- Minimal lock contention
+- Proper resource cleanup
+- Optimized collection choices
 - ------------------------------------------------------------------------
 # Сімулятар аўкцыёну
 
@@ -218,10 +225,3 @@ A multi-threaded auction system that simulates concurrent bidding and purchasing
 - Мінімальнае змаганне за блакіроўкі
 - Правільная ачыстка рэсурсаў
 - Аптымізаваны выбар калекцый
-
-## Performance Considerations
-
-- Efficient thread pool usage
-- Minimal lock contention
-- Proper resource cleanup
-- Optimized collection choices
