@@ -4,9 +4,14 @@ import com.auction.model.Buyer;
 import com.auction.model.Lot;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import com.auction.model.states.BoughtState;
+import com.auction.model.states.RejectedState;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -14,11 +19,14 @@ public class AuctionManager {
     private static final Logger logger = LogManager.getLogger(AuctionManager.class);
     private static final AtomicReference<AuctionManager> instance = new AtomicReference<>();
     private static final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-    
+    private static final Random random = new Random();
+
     private final List<Lot> activeLots;
     private final List<Buyer> buyers;
     private final ExecutorService executorService;
     private final ScheduledExecutorService scheduler;
+    private final ReentrantLock lotLocker = new ReentrantLock();
+    private final ConcurrentHashMap<String, ReentrantLock> bidLocks = new ConcurrentHashMap<>();
     
     private AuctionManager() {
         this.activeLots = new ArrayList<>();
@@ -45,6 +53,7 @@ public class AuctionManager {
         lock.writeLock().lock();
         try {
             activeLots.add(lot);
+            bidLocks.put(lot.getName(), new ReentrantLock());
             logger.info("Added new lot: {}", lot.getName());
         } finally {
             lock.writeLock().unlock();
@@ -74,55 +83,70 @@ public class AuctionManager {
     
     private void processLot(Lot lot) {
         try {
-            // Start bidding process
             CountDownLatch biddingLatch = new CountDownLatch(1);
-            List<Future<Double>> bids = new ArrayList<>();
-            
-            // Collect bids from buyers
+            List<Future<Integer>> bids = new ArrayList<>();
+            ReentrantLock bidLock = bidLocks.get(lot.getName());
+
             for (Buyer buyer : buyers) {
                 if (buyer.hasFunds()) {
                     bids.add(executorService.submit(() -> {
-                        if (buyer.placeBid(lot, lot.getCurrentPrice())) {
-                            return lot.getCurrentPrice();
+                        int lastPrice = lot.getInitialPrice();
+                        boolean lotSold = false;
+                        
+                        while (!lotSold && buyer.hasFunds()) {
+                            bidLock.lock();
+                            try {
+                                int amount = lot.getCurrentPrice() + random.nextInt(5, 50);
+                                if (buyer.placeBid(lot, amount)) {
+                                    lot.setCurrentPrice(amount);
+                                    lot.setOwner(buyer);
+                                    lastPrice = amount;
+                                }
+                                
+                                if (lot.getState() instanceof BoughtState) {
+                                    lotSold = true;
+                                }
+                            } finally {
+                                bidLock.unlock();
+                            }
+                            
+                            Thread.sleep(random.nextInt(200, 1000));
                         }
-                        return 0.0;
+                        return lastPrice;
                     }));
                 }
             }
             
-            // Wait for bidding period
-            scheduler.schedule(() -> biddingLatch.countDown(), 10, TimeUnit.SECONDS);
-            biddingLatch.await();
-            
-            // Process bids
-            double highestBid = 0.0;
-            Buyer winningBuyer = null;
-            
-            for (Future<Double> bid : bids) {
-                double bidAmount = bid.get();
-                if (bidAmount > highestBid) {
-                    highestBid = bidAmount;
-                    // Find buyer who placed this bid
-                    for (Buyer buyer : buyers) {
-                        if (buyer.getBudget() >= bidAmount) {
-                            winningBuyer = buyer;
-                            break;
-                        }
+            int taskNumber = bids.size();
+            int taskCompleted = 0;
+            while(taskCompleted < taskNumber) {
+                for (Future<Integer> bid : bids) {
+                    if (bid.isDone() || bid.isCancelled()) {
+                        taskCompleted++;
                     }
                 }
+                Thread.sleep(300);
             }
-            
-            // Process purchase
-            if (winningBuyer != null && winningBuyer.purchaseLot(lot, highestBid)) {
-                lot.setOwnerName(winningBuyer.getName());
-                lot.setState(new com.auction.model.states.BoughtState(lot));
+
+            Buyer winningBuyer = lot.getOwner();
+            if (winningBuyer != null) {
+                lotLocker.lock();
+                try {
+                    if (winningBuyer.purchaseLot(lot, lot.getCurrentPrice())) {
+                        lot.setState(new BoughtState(lot));
+                    } else {
+                        lot.setState(new RejectedState(lot));
+                    }
+                } finally {
+                    lotLocker.unlock();
+                }
             } else {
-                lot.setState(new com.auction.model.states.RejectedState(lot));
+                lot.setState(new RejectedState(lot));
             }
-            
+
         } catch (Exception e) {
             logger.error("Error processing lot {}: {}", lot.getName(), e.getMessage());
-            lot.setState(new com.auction.model.states.RejectedState(lot));
+            lot.setState(new RejectedState(lot));
         }
     }
     
@@ -137,9 +161,12 @@ public class AuctionManager {
                 scheduler.shutdownNow();
             }
         } catch (InterruptedException e) {
+            System.out.println(e);
+            Thread.currentThread().interrupt();
+        }
+        finally {
             executorService.shutdownNow();
             scheduler.shutdownNow();
-            Thread.currentThread().interrupt();
         }
     }
 } 

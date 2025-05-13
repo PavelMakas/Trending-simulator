@@ -17,14 +17,16 @@ public class ConfigurationReader {
     public static List<Lot> readLots(String filename) {
         List<Lot> lots = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+            LocalDateTime baseTime = LocalDateTime.now().plusMinutes(2);
             String line;
             while ((line = reader.readLine()) != null) {
                 String[] parts = line.split(",");
                 if (parts.length == 4) {
                     String name = parts[0].trim();
-                    double initialPrice = Double.parseDouble(parts[1].trim());
-                    double autoBuyPrice = Double.parseDouble(parts[2].trim());
-                    LocalDateTime expirationTime = LocalDateTime.parse(parts[3].trim());
+                    int initialPrice = Integer.parseInt(parts[1].trim());
+                    int autoBuyPrice = Integer.parseInt(parts[2].trim());
+                    int timeSpan = Integer.parseInt(parts[3].trim());
+                    LocalDateTime expirationTime = baseTime.plusMinutes(timeSpan);
                     
                     lots.add(new Lot(name, initialPrice, autoBuyPrice, expirationTime));
                 }
@@ -43,8 +45,7 @@ public class ConfigurationReader {
                 String[] parts = line.split(",");
                 if (parts.length == 2) {
                     String name = parts[0].trim();
-                    double budget = Double.parseDouble(parts[1].trim());
-                    
+                    int budget = Integer.parseInt(parts[1].trim());
                     buyers.add(new Buyer(name, budget));
                 }
             }
@@ -53,4 +54,4 @@ public class ConfigurationReader {
         }
         return buyers;
     }
-} 
+}

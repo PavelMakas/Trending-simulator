@@ -1,60 +1,50 @@
 package com.auction.model;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicDouble;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class Buyer {
     private static final Logger logger = LogManager.getLogger(Buyer.class);
-    
-    private final String name;
-    private final AtomicDouble budget;
-    private final ConcurrentHashMap<String, Boolean> blockedLots;
 
-    public Buyer(String name, double budget) {
+    private final String name;
+    private int budget;
+    private final LotStorage lotStorage;
+
+    public Buyer(String name, int budget) {
         this.name = name;
-        this.budget = new AtomicDouble(budget);
-        this.blockedLots = new ConcurrentHashMap<>();
+        this.budget = budget;
+        this.lotStorage = LotStorage.getInstance();
     }
 
-    public boolean placeBid(Lot lot, double bidAmount) {
-        if (isBlockedForLot(lot) || budget.get() < bidAmount) {
+    public boolean placeBid(Lot lot, int bidAmount) {
+        if (budget < bidAmount || lotStorage.isLotBlocked(lot.getName())) {
             logger.info("Buyer {} cannot place bid on lot {}: blocked or insufficient funds", name, lot.getName());
             return false;
         }
         return true;
     }
 
-    public boolean purchaseLot(Lot lot, double amount) {
-        if (budget.get() < amount) {
-            blockForLot(lot);
+    public boolean purchaseLot(Lot lot, int amount) {
+        if (budget < amount) {
+            lotStorage.blockLot(lot.getName());
             logger.info("Buyer {} failed to purchase lot {}: insufficient funds", name, lot.getName());
             return false;
         }
-        
-        double newBudget = budget.addAndGet(-amount);
-        logger.info("Buyer {} purchased lot {} for {}. Remaining budget: {}", name, lot.getName(), amount, newBudget);
+
+        budget = budget - amount;
+        logger.info("Buyer {} purchased lot {} for {}. Remaining budget: {}", name, lot.getName(), amount, budget);
         return true;
-    }
-
-    public void blockForLot(Lot lot) {
-        blockedLots.put(lot.getName(), true);
-    }
-
-    public boolean isBlockedForLot(Lot lot) {
-        return blockedLots.getOrDefault(lot.getName(), false);
     }
 
     public String getName() {
         return name;
     }
 
-    public double getBudget() {
-        return budget.get();
+    public int getBudget() {
+        return budget;
     }
 
     public boolean hasFunds() {
-        return budget.get() > 0;
+        return budget > 0;
     }
-} 
+}

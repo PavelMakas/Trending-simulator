@@ -41,8 +41,8 @@ public class DataGenerator {
             String category = ITEM_CATEGORIES[random.nextInt(ITEM_CATEGORIES.length)];
             String name = type + " " + category + " #" + (i + 1);
             
-            double initialPrice = 100.0 + random.nextDouble() * 9900.0; // 100-10000
-            double autoBuyPrice = initialPrice * (1.0 + random.nextDouble() * 0.5); // 1-1.5x initial price
+            int initialPrice = random.nextInt(100, 9900); // 100-10000
+            int autoBuyPrice = initialPrice * random.nextInt(initialPrice, initialPrice * 2); // 1-1.5x initial price
             LocalDateTime expirationTime = baseTime.plusMinutes(random.nextInt(60)); // Random time within next hour
             
             lots.add(new Lot(name, initialPrice, autoBuyPrice, expirationTime));
@@ -60,7 +60,7 @@ public class DataGenerator {
             String lastName = LAST_NAMES[random.nextInt(LAST_NAMES.length)];
             String name = firstName + " " + lastName;
             
-            double budget = 1000.0 + random.nextDouble() * 99000.0; // 1000-100000
+            int budget = random.nextInt(1000, 99000); // 1000-100000
             
             buyers.add(new Buyer(name, budget));
         }

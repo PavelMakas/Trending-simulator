@@ -15,6 +15,6 @@ public class BoughtState implements LotState {
 
     @Override
     public void process() {
-        logger.info("Lot {} has been bought by {}", lot.getName(), lot.getOwnerName());
+        logger.info("Lot {} has been bought by {}", lot.getName(), lot.getOwner().getName());
     }
 } 
