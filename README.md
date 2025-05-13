@@ -1,7 +1,3 @@
-Here's a presentation text for your project:
-
----
-
 # Multi-threaded Auction Simulator
 
 ## Overview
