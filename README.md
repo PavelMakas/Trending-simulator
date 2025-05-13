@@ -1,98 +1,113 @@
-# Multi-threaded Auction Simulator
+# Auction Simulator
 
-This project implements a multi-threaded auction simulation system in Java, demonstrating various concurrent programming concepts and design patterns.
+A multi-threaded auction system that simulates concurrent bidding and purchasing of items by multiple buyers.
 
-## Project Structure
+## System Architecture
 
-The project is organized into the following packages:
+### Core Components
 
-- `com.auction.model`: Contains the core domain classes
-  - `Lot`: Represents an auction item with properties like name, price, and state
-  - `Buyer`: Represents a participant in the auction with a budget
-  - `states`: Contains the state implementations for lots (UnderConsideration, Bought, Rejected)
+#### 1. LotStorage (Singleton)
+- Thread-safe singleton implementation using ReentrantReadWriteLock
+- Manages blocked lots using ConcurrentSkipListSet
+- Provides synchronized access to lot blocking operations
+- Key methods:
+  - `blockLot(String lotName)`: Blocks a lot for purchase
+  - `isLotBlocked(String lotName)`: Checks if a lot is blocked
+  - `unblockLot(String lotName)`: Removes lot from blocked list
 
-- `com.auction.service`: Contains the business logic
-  - `AuctionManager`: A thread-safe singleton that manages the auction process
+#### 2. Buyer
+- Represents an auction participant
+- Manages individual budget and lot interactions
+- Uses LotStorage for lot blocking operations
+- Key methods:
+  - `placeBid(Lot lot, int bidAmount)`: Attempts to place a bid
+  - `purchaseLot(Lot lot, int amount)`: Attempts to purchase a lot
+  - `hasFunds()`: Checks if buyer has remaining budget
 
-- `com.auction.config`: Contains configuration-related classes
-  - `ConfigurationReader`: Reads initialization data from files
+#### 3. AuctionManager (Singleton)
+- Central auction control system
+- Manages lots and buyers
+- Handles concurrent bidding process
+- Uses multiple synchronization mechanisms:
+  - ReentrantReadWriteLock for instance management
+  - ReentrantLock for lot operations
+  - ConcurrentHashMap for bid locks
+- Key features:
+  - Thread pool management for concurrent operations
+  - Bid locking mechanism
+  - Continuous bidding loop until lot is sold
+  - Proper shutdown handling
 
-## Key Features
+### Thread Safety Mechanisms
 
-1. **Thread Safety**
-   - Uses `java.util.concurrent` and `java.util.concurrent.locks` for synchronization
-   - Implements a thread-safe singleton pattern for the AuctionManager
-   - Uses atomic operations for budget management
-   - Employs read-write locks for concurrent access to shared resources
+1. **LotStorage**
+   - Double-checked locking for singleton
+   - ReadWriteLock for concurrent access
+   - Thread-safe collection (ConcurrentSkipListSet)
 
-2. **State Pattern**
-   - Implements the State pattern for lot states (UnderConsideration, Bought, Rejected)
-   - Each state encapsulates its behavior and transitions
+2. **AuctionManager**
+   - AtomicReference for singleton instance
+   - ReadWriteLock for instance management
+   - ReentrantLock for lot operations
+   - ConcurrentHashMap for bid locks
+   - Thread pool for concurrent operations
 
-3. **Configuration**
-   - Reads lot and buyer data from configuration files
-   - Supports dynamic initialization of auction participants
+3. **Buyer**
+   - Thread-safe lot storage access
+   - Synchronized budget management
+   - Atomic operations for fund checking
 
-4. **Bidding Process**
-   - Implements a 10-second bidding window for each lot
-   - Handles concurrent bids from multiple buyers
-   - Manages buyer budgets and lot states
-   - Implements blocking mechanism for buyers who fail to purchase
+### Bidding Process
 
-5. **Logging**
-   - Uses Log4j2 for comprehensive logging
-   - Tracks auction events, state changes, and errors
+1. **Lot Processing**
+   - Each lot is processed in a separate thread
+   - Bids are collected concurrently
+   - Continuous bidding until lot is sold or buyers run out of funds
 
-## Configuration Files
+2. **Bid Management**
+   - Individual locks for each lot's bidding process
+   - Price updates are synchronized
+   - Owner updates are atomic
 
-### lots.txt
-Format: `name,initialPrice,autoBuyPrice,expirationTime`
-Example:
-```
-Antique Vase,1000.0,1500.0,2024-03-20T15:30:00
-Rare Painting,5000.0,7500.0,2024-03-20T15:30:00
-Vintage Watch,2000.0,3000.0,2024-03-20T15:30:00
-```
+3. **Purchase Process**
+   - Lot locking during purchase
+   - Budget verification
+   - State management (Bought/Rejected)
+
+## Usage
+
+1. Create buyers with initial budgets
+2. Add lots to the auction
+3. Start the auction process
+4. Monitor the results
+
+## Data Files
 
 ### buyers.txt
-Format: `name,budget`
-Example:
-```
-John Smith,10000.0
-Alice Johnson,5000.0
-Bob Wilson,8000.0
-```
+- Format: `name,budget`
+- Contains buyer information and their budgets
 
-## Running the Application
+### products.txt
+- Format: `name,price`
+- Contains product information and initial prices
 
-1. Ensure you have Java 11 or later installed
-2. Build the project using Maven:
-   ```bash
-   mvn clean install
-   ```
-3. Run the application:
-   ```bash
-   java -jar target/auction-simulator-1.0-SNAPSHOT.jar
-   ```
+## Thread Safety Features
 
-## Design Decisions
+- Concurrent bid processing
+- Thread-safe collections
+- Proper lock management
+- Atomic operations
+- Safe shutdown handling
 
-1. **Thread Safety**
-   - Used `ReentrantReadWriteLock` for the AuctionManager to allow concurrent reads
-   - Implemented atomic operations for budget management to prevent race conditions
-   - Used `ConcurrentHashMap` for tracking blocked lots
+## Error Handling
 
-2. **State Management**
-   - Implemented the State pattern to handle lot states
-   - Each state encapsulates its behavior and transitions
-   - States are immutable and thread-safe
+- Proper exception handling in all operations
+- Graceful shutdown procedures
+- Logging of important events and errors
 
-3. **Concurrency**
-   - Used `ExecutorService` for managing thread pools
-   - Implemented `CountDownLatch` for synchronizing bidding periods
-   - Used `ScheduledExecutorService` for timing operations
+## Performance Considerations
 
-4. **Error Handling**
-   - Comprehensive logging of all operations
-   - Graceful handling of exceptions
-   - Proper resource cleanup 
+- Efficient thread pool usage
+- Minimal lock contention
+- Proper resource cleanup
+- Optimized collection choices 
